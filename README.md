@@ -2,6 +2,8 @@
 
 このリポジトリは、Wikipedia の記事間を最少クリックで辿るゲーム「Wikipedia Race」の簡易実装です。
 
+##メモ: 生SQLからORMへの切り替えを検討
+
 ## 構成
 
 - `frontend/` : GitHub Pages などの静的ホスティングで公開する HTML/JavaScript
