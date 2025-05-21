@@ -1,2 +1,2 @@
-# Wikipedia_race
+# Wikipedia_Race
 OpenAIのCodexを使用してWikipedia Raceの日本語版を作成してみている
