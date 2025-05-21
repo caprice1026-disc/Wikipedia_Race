@@ -161,6 +161,12 @@ def api_ranking():
     return jsonify({'ranking': ranking})
 
 
+@app.before_first_request
+def initialize_database():
+    """Ensure the SQLite database and tables are available."""
+    init_db()
+
+
 if __name__ == '__main__':
     init_db()
     app.run(host='0.0.0.0', port=5000)
