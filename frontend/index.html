@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <title>Wikipedia Race</title>
+    <style>
+        body { font-family: sans-serif; margin: 2em; }
+        .invalid { border-color: red; }
+    </style>
+</head>
+<body>
+<h1>Wikipedia Race</h1>
+<div id="puzzle-info"></div>
+<div id="form-container"></div>
+<button id="add-step">＋</button>
+<button id="validate">検証</button>
+<div id="result"></div>
+<script>
+const formContainer = document.getElementById('form-container');
+const addStepBtn = document.getElementById('add-step');
+const validateBtn = document.getElementById('validate');
+const resultDiv = document.getElementById('result');
+let currentPuzzle = null;
+
+function createInput() {
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.placeholder = 'https://ja.wikipedia.org/wiki/記事';
+    input.addEventListener('input', () => {
+        const re = /^https:\/\/ja\.wikipedia\.org\/wiki\/.+/;
+        if (re.test(input.value)) {
+            input.classList.remove('invalid');
+        } else {
+            input.classList.add('invalid');
+        }
+    });
+    formContainer.appendChild(input);
+}
+
+addStepBtn.addEventListener('click', () => {
+    createInput();
+});
+
+function fetchPuzzle() {
+    fetch('/api/puzzles')
+        .then(r => r.json())
+        .then(data => {
+            currentPuzzle = data.puzzles[0];
+            const info = document.getElementById('puzzle-info');
+            info.textContent = `Start: ${currentPuzzle.start_title} → Goal: ${currentPuzzle.goal_title}`;
+        });
+}
+
+validateBtn.addEventListener('click', () => {
+    if (!currentPuzzle) return;
+    const inputs = Array.from(formContainer.querySelectorAll('input'));
+    const titles = inputs.map(inp => inp.value.match(/wiki\/(.+)/)?.[1] || '');
+    if (titles.some(t => !t)) {
+        resultDiv.textContent = 'URLを確認してください';
+        return;
+    }
+    const route = [currentPuzzle.start_title, ...titles, currentPuzzle.goal_title];
+    fetch('/api/validate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ puzzle_id: currentPuzzle.puzzle_id, route: route })
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.valid) {
+            resultDiv.textContent = `成功! ステップ数: ${data.step_count}`;
+        } else if (data.failed_step) {
+            resultDiv.textContent = `失敗: ステップ${data.failed_step}でリンクが見つかりません`;
+            const targetInput = inputs[data.failed_step - 1];
+            if (targetInput) targetInput.classList.add('invalid');
+        } else {
+            resultDiv.textContent = 'エラーが発生しました';
+        }
+    })
+    .catch(() => { resultDiv.textContent = '通信エラー'; });
+});
+
+fetchPuzzle();
+createInput();
+</script>
+</body>
+</html>
