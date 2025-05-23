@@ -8,6 +8,7 @@
 
 - `frontend/` : GitHub Pages などの静的ホスティングで公開する HTML/JavaScript
 - `backend/`  : Flask による API サーバ
+- `static_pages/` : バックエンドを使用しない GitHub Pages 向けの純粋な HTML/CSS/JavaScript
 
 ## セットアップ
 
@@ -39,6 +40,13 @@ pytest
 - `/api/puzzles` でスタート記事とゴール記事のペアを取得します。
 - `/api/validate` にユーザーが入力した経路を送信すると、各ステップでリンクが存在するか MediaWiki API を通じて確認します。
 - 正当であればステップ数を返し、そうでなければ失敗したステップ番号を返します。
+
+## GitHub Pages 静的版
+
+`static_pages/` ディレクトリには、バックエンドを使用せず Wikipedia API だけで動作
+する簡易版を用意しています。GitHub Pages へそのまま配置することで動作確認できます。
+`puzzles.json` にスタートとゴールの記事を定義しており、ブラウザのみで検証を行いま
+す。
 
 ## 免責
 
