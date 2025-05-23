@@ -32,23 +32,41 @@ async function loadPuzzle() {
 }
 
 async function checkLinkExists(sourceTitle, targetTitle) {
-    const params = new URLSearchParams({
+    /**
+     * Query the MediaWiki API to determine if `sourceTitle` links to
+     * `targetTitle`. The API paginates results via `plcontinue`, so we
+     * repeatedly fetch pages until the link is found or no more data is
+     * available.
+     */
+
+    const baseParams = {
         action: 'query',
         prop: 'links',
         titles: sourceTitle,
         pllimit: 'max',
         format: 'json',
         origin: '*'
-    });
-    const url = `https://ja.wikipedia.org/w/api.php?${params.toString()}`;
-    const resp = await fetch(url);
-    const data = await resp.json();
-    const pages = data.query && data.query.pages ? data.query.pages : {};
-    for (const key in pages) {
-        const links = pages[key].links || [];
-        if (links.some(l => l.title === targetTitle)) {
-            return true;
+    };
+
+    let next = null;
+    while (true) {
+        const params = new URLSearchParams(baseParams);
+        if (next) params.set('plcontinue', next);
+
+        const url = `https://ja.wikipedia.org/w/api.php?${params.toString()}`;
+        const resp = await fetch(url);
+        const data = await resp.json();
+
+        const pages = data.query && data.query.pages ? data.query.pages : {};
+        for (const key in pages) {
+            const links = pages[key].links || [];
+            if (links.some(l => l.title === targetTitle)) {
+                return true;
+            }
         }
+
+        next = data.continue && data.continue.plcontinue;
+        if (!next) break;
     }
     return false;
 }

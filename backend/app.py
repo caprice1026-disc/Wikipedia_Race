@@ -90,28 +90,49 @@ def get_ranking(puzzle_id):
 
 
 def check_link_exists(source_title, target_title, retries=3):
-    params = {
+    """Return True if ``source_title`` links to ``target_title``.
+
+    The MediaWiki API paginates link lists. This function now follows the
+    ``plcontinue`` cursor until the link is found or no more data is
+    available. Network errors are retried with exponential backoff.
+    """
+
+    base_params = {
         'action': 'query',
         'prop': 'links',
         'titles': source_title,
         'pllimit': 'max',
-        'format': 'json'
+        'format': 'json',
     }
+
     attempt = 0
     while attempt < retries:
         try:
-            resp = requests.get(WIKI_API, params=params, headers={'User-Agent': USER_AGENT})
-            resp.raise_for_status()
-            data = resp.json()
-            pages = data.get('query', {}).get('pages', {})
-            for page in pages.values():
-                for link in page.get('links', []):
-                    if link.get('title') == target_title:
-                        return True
+            next_continue = None
+            while True:
+                params = dict(base_params)
+                if next_continue:
+                    params['plcontinue'] = next_continue
+
+                resp = requests.get(WIKI_API, params=params, headers={'User-Agent': USER_AGENT})
+                resp.raise_for_status()
+                data = resp.json()
+
+                pages = data.get('query', {}).get('pages', {})
+                for page in pages.values():
+                    for link in page.get('links', []):
+                        if link.get('title') == target_title:
+                            return True
+
+                next_continue = data.get('continue', {}).get('plcontinue')
+                if not next_continue:
+                    break
+
             return False
         except Exception:
             time.sleep((2 ** attempt) + random.random())
             attempt += 1
+
     raise RuntimeError('API unreachable')
 
 
