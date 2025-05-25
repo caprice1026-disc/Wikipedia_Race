@@ -1,87 +1,137 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-    <meta charset="UTF-8">
-    <title>Wikipedia Race</title>
-    <style>
-        body { font-family: sans-serif; margin: 2em; }
-        .invalid { border-color: red; }
-    </style>
+  <meta charset="UTF-8">
+  <title>Wikipedia Race</title>
+  <style>
+    body { font-family: sans-serif; margin: 2em; }
+    .invalid { border: 2px solid red; }
+  </style>
 </head>
 <body>
-<h1>Wikipedia Race</h1>
-<div id="puzzle-info"></div>
-<div id="form-container"></div>
-<button id="add-step">＋</button>
-<button id="validate">検証</button>
-<div id="result"></div>
-<script>
-const formContainer = document.getElementById('form-container');
-const addStepBtn = document.getElementById('add-step');
-const validateBtn = document.getElementById('validate');
-const resultDiv = document.getElementById('result');
-let currentPuzzle = null;
+  <h1>Wikipedia Race</h1>
 
-function createInput() {
+  <div id="puzzle-info"></div>
+  <div id="form-container"></div>
+  <button id="add-step">＋</button>
+  <button id="validate">検証</button>
+  <div id="result"></div>
+
+  <script>
+  /* ─────────────────────────────
+     デバッグユーティリティ
+  ───────────────────────────── */
+  const DEBUG = true;          // false にすると静かになる
+  const log   = (...a) => DEBUG && console.log('[DEBUG]', ...a);
+
+  /* ─────────────────────────────
+     DOM 要素
+  ───────────────────────────── */
+  const formContainer = document.getElementById('form-container');
+  const addStepBtn    = document.getElementById('add-step');
+  const validateBtn   = document.getElementById('validate');
+  const resultDiv     = document.getElementById('result');
+  let   currentPuzzle = null;
+
+  /* ─────────────────────────────
+     入力フィールド生成
+  ───────────────────────────── */
+  function createInput() {
     const input = document.createElement('input');
     input.type = 'text';
     input.placeholder = 'https://ja.wikipedia.org/wiki/記事';
     input.addEventListener('input', () => {
-        const re = /^https:\/\/ja\.wikipedia\.org\/wiki\/.+/;
-        if (re.test(input.value)) {
-            input.classList.remove('invalid');
-        } else {
-            input.classList.add('invalid');
-        }
+      const ok = /^https:\/\/ja\.wikipedia\.org\/wiki\/[^#?]+/.test(input.value);
+      input.classList.toggle('invalid', !ok);
     });
     formContainer.appendChild(input);
-}
+  }
 
-addStepBtn.addEventListener('click', () => {
-    createInput();
-});
+  addStepBtn.addEventListener('click', createInput);
 
-function fetchPuzzle() {
+  /* ─────────────────────────────
+     パズル取得
+  ───────────────────────────── */
+  function fetchPuzzle() {
     fetch('/api/puzzles')
-        .then(r => r.json())
-        .then(data => {
-            currentPuzzle = data.puzzles[0];
-            const info = document.getElementById('puzzle-info');
-            info.textContent = `Start: ${currentPuzzle.start_title} → Goal: ${currentPuzzle.goal_title}`;
-        });
-}
+      .then(r => r.json())
+      .then(data => {
+        log('Puzzle list', data);
+        currentPuzzle = data.puzzles[0];
+        document.getElementById('puzzle-info').textContent =
+          `Start: ${currentPuzzle.start_title} → Goal: ${currentPuzzle.goal_title}`;
+      })
+      .catch(err => console.error('Puzzle fetch error', err));
+  }
 
-validateBtn.addEventListener('click', () => {
+  /* ─────────────────────────────
+     URL→タイトル変換
+  ───────────────────────────── */
+  function extractTitleFromUrl(url) {
+    const m = url.match(/^https:\/\/ja\.wikipedia\.org\/wiki\/([^#?]+)/);
+    if (!m) return '';
+    let title = decodeURIComponent(m[1]).replace(/_/g, ' ');
+    title = title.charAt(0).toUpperCase() + title.slice(1);
+    return title.trim();
+  }
+
+  /* ─────────────────────────────
+     検証ボタン押下
+  ───────────────────────────── */
+  validateBtn.addEventListener('click', () => {
     if (!currentPuzzle) return;
+
     const inputs = Array.from(formContainer.querySelectorAll('input'));
-    const titles = inputs.map(inp => inp.value.match(/wiki\/(.+)/)?.[1] || '');
+    const titles = inputs.map(inp => extractTitleFromUrl(inp.value));
+
     if (titles.some(t => !t)) {
-        resultDiv.textContent = 'URLを確認してください';
-        return;
+      resultDiv.textContent = 'URLを確認してください';
+      return;
     }
-    const route = [currentPuzzle.start_title, ...titles, currentPuzzle.goal_title];
+
+    const route = [
+      currentPuzzle.start_title,
+      ...titles,
+      currentPuzzle.goal_title
+    ];
+
+    log('Sending route', route);
+
     fetch('/api/validate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ puzzle_id: currentPuzzle.puzzle_id, route: route })
+      method : 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body   : JSON.stringify({
+        puzzle_id: currentPuzzle.puzzle_id,
+        route    : route
+      })
     })
     .then(r => r.json())
     .then(data => {
-        if (data.valid) {
-            resultDiv.textContent = `成功! ステップ数: ${data.step_count}`;
-        } else if (data.failed_step) {
-            resultDiv.textContent = `失敗: ステップ${data.failed_step}でリンクが見つかりません`;
-            const targetInput = inputs[data.failed_step - 1];
-            if (targetInput) targetInput.classList.add('invalid');
-        } else {
-            resultDiv.textContent = 'エラーが発生しました';
-        }
-    })
-    .catch(() => { resultDiv.textContent = '通信エラー'; });
-});
+      log('Validate response', data);
 
-fetchPuzzle();
-createInput();
-</script>
+      if (data.valid) {
+        resultDiv.textContent = `成功! ステップ数: ${data.step_count}`;
+      } else if (data.failed_step) {
+        resultDiv.textContent = `失敗: ステップ${data.failed_step}でリンクが見つかりません`;
+        const bad = inputs[data.failed_step - 1];
+        if (bad) bad.classList.add('invalid');
+      } else if (data.error) {
+        resultDiv.textContent = `エラー: ${data.error}`;
+      } else {
+        resultDiv.textContent = '未知のエラー';
+      }
+    })
+    .catch(err => {
+      console.error('Fetch error', err);
+      resultDiv.textContent = '通信エラー';
+    });
+  });
+
+  /* ─────────────────────────────
+     初期化
+  ───────────────────────────── */
+  fetchPuzzle();
+  createInput();         // 1 本目の入力欄
+  </script>
 </body>
 </html>
