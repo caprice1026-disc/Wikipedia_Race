@@ -4,9 +4,11 @@ import time
 import random
 from datetime import datetime
 
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, send_from_directory
+import os
 import requests
 
+# フロントエンドのHTMLを提供するためstatic_folderを指定
 app = Flask(__name__)
 
 DB_PATH = 'wikirace.db'
@@ -134,6 +136,13 @@ def check_link_exists(source_title, target_title, retries=3):
             attempt += 1
 
     raise RuntimeError('API unreachable')
+
+
+@app.route('/')
+def index():
+    """フロントエンドのHTMLを返すシンプルなルート"""
+    frontend_dir = os.path.join(os.path.dirname(__file__), '..', 'frontend')
+    return send_from_directory(frontend_dir, 'index.html')
 
 
 @app.route('/api/puzzles', methods=['GET'])
