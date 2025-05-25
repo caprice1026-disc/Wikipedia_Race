@@ -5,7 +5,11 @@
   <title>Wikipedia Race</title>
   <style>
     body { font-family: sans-serif; margin: 2em; }
+    #form-container { display: flex; flex-direction: column; gap: 0.5em; }
+    .input-row { display: flex; align-items: center; gap: 0.5em; }
+    input { flex: 1; padding: 0.4em; border-radius: 4px; border: 1px solid #ccc; }
     .invalid { border: 2px solid red; }
+    button { padding: 0.4em 0.8em; border-radius: 4px; border: 1px solid #888; background: #eee; }
   </style>
 </head>
 <body>
@@ -37,14 +41,26 @@
      入力フィールド生成
   ───────────────────────────── */
   function createInput() {
+    // 入力欄と削除ボタンをまとめるラッパー
+    const row = document.createElement('div');
+    row.className = 'input-row';
+
     const input = document.createElement('input');
     input.type = 'text';
     input.placeholder = 'https://ja.wikipedia.org/wiki/記事';
+    // 入力検証
     input.addEventListener('input', () => {
       const ok = /^https:\/\/ja\.wikipedia\.org\/wiki\/[^#?]+/.test(input.value);
       input.classList.toggle('invalid', !ok);
     });
-    formContainer.appendChild(input);
+
+    const removeBtn = document.createElement('button');
+    removeBtn.textContent = '－';
+    removeBtn.addEventListener('click', () => row.remove());
+
+    row.appendChild(input);
+    row.appendChild(removeBtn);
+    formContainer.appendChild(row);
   }
 
   addStepBtn.addEventListener('click', createInput);

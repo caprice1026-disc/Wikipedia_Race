@@ -5,6 +5,10 @@ const resultDiv = document.getElementById('result');
 let currentPuzzle = null;
 
 function createInput() {
+    // 入力欄と削除ボタンを持つ行要素
+    const row = document.createElement('div');
+    row.className = 'input-row';
+
     const input = document.createElement('input');
     input.type = 'text';
     input.placeholder = 'https://ja.wikipedia.org/wiki/記事';
@@ -16,7 +20,14 @@ function createInput() {
             input.classList.add('invalid');
         }
     });
-    formContainer.appendChild(input);
+
+    const removeBtn = document.createElement('button');
+    removeBtn.textContent = '－';
+    removeBtn.addEventListener('click', () => row.remove());
+
+    row.appendChild(input);
+    row.appendChild(removeBtn);
+    formContainer.appendChild(row);
 }
 
 addStepBtn.addEventListener('click', () => {
