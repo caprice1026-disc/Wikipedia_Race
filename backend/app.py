@@ -181,13 +181,8 @@ def api_ranking():
     ranking = get_ranking(puzzle_id)
     return jsonify({'ranking': ranking})
 
-
-@app.before_first_request
-def initialize_database():
-    """Ensure the SQLite database and tables are available."""
-    init_db()
-
+# アプリ起動時に一度だけデータベースを初期化する
+init_db()
 
 if __name__ == '__main__':
-    init_db()
     app.run(host='0.0.0.0', port=5000)
