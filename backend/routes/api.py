@@ -1,8 +1,15 @@
 import logging
 import os
 from flask import Blueprint, request, jsonify, send_from_directory
-from ..services.database import fetch_puzzles, save_submission, get_ranking
+from ..services.database import (
+    fetch_puzzles,
+    save_submission,
+    get_ranking,
+    add_puzzle,
+)
 from ..services.wiki import check_link_exists
+
+ADMIN_TOKEN = os.environ.get("ADMIN_TOKEN", "admin-secret")
 
 bp = Blueprint("api", __name__)
 logger = logging.getLogger(__name__)
@@ -15,10 +22,35 @@ def index():
     return send_from_directory(frontend_dir, "index.html")
 
 
+@bp.route("/static/<path:filename>")
+def static_files(filename):
+    """フロントエンドの静的ファイルを返す"""
+    frontend_dir = os.path.join(os.path.dirname(__file__), "..", "frontend")
+    return send_from_directory(frontend_dir, filename)
+
+
 @bp.route("/api/puzzles", methods=["GET"])
 def api_puzzles():
     puzzles = fetch_puzzles()
     return jsonify({"puzzles": puzzles})
+
+
+@bp.route("/api/puzzles", methods=["POST"])
+def api_add_puzzle():
+    """管理者によるパズル追加"""
+    auth = request.headers.get("Authorization", "")
+    if auth != f"Bearer {ADMIN_TOKEN}":
+        return jsonify({"error": "unauthorized"}), 401
+
+    payload = request.get_json(force=True)
+    start_title = payload.get("start_title")
+    goal_title = payload.get("goal_title")
+    if not start_title or not goal_title:
+        return jsonify({"error": "invalid payload"}), 400
+
+    puzzle = add_puzzle(start_title, goal_title)
+    logger.info("Added puzzle %s", puzzle.puzzle_id)
+    return jsonify({"puzzle_id": puzzle.puzzle_id}), 201
 
 
 @bp.route("/api/validate", methods=["POST"])
