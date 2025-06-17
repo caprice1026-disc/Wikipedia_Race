@@ -2,7 +2,6 @@
 # -*- coding: utf-8 -*-
 
 import json
-import sqlite3
 import time
 import random
 import logging
@@ -10,6 +9,7 @@ from datetime import datetime
 from flask import Flask, request, jsonify, send_from_directory
 import os
 import requests
+from orm import init_db, Puzzle, Submission
 
 # ────────────────────────────────────
 # ロガー初期化
@@ -25,86 +25,37 @@ logger = logging.getLogger(__name__)
 # ────────────────────────────────────
 app = Flask(__name__)
 
-DB_PATH   = 'wikirace.db'
 WIKI_API  = 'https://ja.wikipedia.org/w/api.php'
 USER_AGENT = 'WikiRaceApp/1.0 (+https://example.com)'
 
 # ────────────────────────────────────
-# DB ヘルパ
-# ────────────────────────────────────
-def get_db():
-    conn = sqlite3.connect(DB_PATH)
-    conn.row_factory = sqlite3.Row
-    return conn
-
-def init_db():
-    conn = get_db()
-    cur  = conn.cursor()
-
-    cur.execute("""CREATE TABLE IF NOT EXISTS puzzle (
-            puzzle_id  INTEGER PRIMARY KEY AUTOINCREMENT,
-            start_title TEXT NOT NULL,
-            goal_title  TEXT NOT NULL,
-            created_at  TEXT,
-            updated_at  TEXT
-    )""")
-
-    cur.execute("""CREATE TABLE IF NOT EXISTS submission (
-            submission_id INTEGER PRIMARY KEY AUTOINCREMENT,
-            puzzle_id     INTEGER NOT NULL,
-            user_name     TEXT,
-            path          TEXT NOT NULL,
-            step_count    INTEGER NOT NULL,
-            created_at    TEXT,
-            FOREIGN KEY(puzzle_id) REFERENCES puzzle(puzzle_id)
-    )""")
-    conn.commit()
-
-    cur.execute("SELECT COUNT(*) FROM puzzle")
-    if cur.fetchone()[0] == 0:
-        now = datetime.utcnow().isoformat()
-        cur.execute(
-            "INSERT INTO puzzle (start_title, goal_title, created_at, updated_at) VALUES (?,?,?,?)",
-            ('HTTP', 'UNIX', now, now)
-        )
-        conn.commit()
-        logger.info('Sample puzzle inserted (HTTP → UNIX)')
-
-    conn.close()
-
-# ────────────────────────────────────
-# クエリ用ユーティリティ
+# ORM ラッパ関数
 # ────────────────────────────────────
 def fetch_puzzles():
-    conn = get_db()
-    cur  = conn.cursor()
-    cur.execute("SELECT puzzle_id, start_title, goal_title FROM puzzle")
-    rows = [dict(r) for r in cur.fetchall()]
-    conn.close()
-    return rows
+    return [
+        {
+            'puzzle_id': p.puzzle_id,
+            'start_title': p.start_title,
+            'goal_title': p.goal_title,
+        }
+        for p in Puzzle.all()
+    ]
+
 
 def save_submission(puzzle_id, user_name, path, step_count):
-    conn = get_db()
-    cur  = conn.cursor()
-    now  = datetime.utcnow().isoformat()
-    cur.execute(
-        "INSERT INTO submission (puzzle_id, user_name, path, step_count, created_at) VALUES (?,?,?,?,?)",
-        (puzzle_id, user_name, json.dumps(path, ensure_ascii=False), step_count, now)
-    )
-    conn.commit()
-    conn.close()
+    now = datetime.utcnow().isoformat()
+    Submission(
+        submission_id=None,
+        puzzle_id=puzzle_id,
+        user_name=user_name,
+        path=json.dumps(path, ensure_ascii=False),
+        step_count=step_count,
+        created_at=now,
+    ).save()
+
 
 def get_ranking(puzzle_id):
-    conn = get_db()
-    cur  = conn.cursor()
-    cur.execute(
-        "SELECT user_name, step_count FROM submission "
-        "WHERE puzzle_id=? ORDER BY step_count ASC, submission_id ASC",
-        (puzzle_id,)
-    )
-    rows = [dict(r) for r in cur.fetchall()]
-    conn.close()
-    return rows
+    return Submission.ranking(puzzle_id)
 
 # ────────────────────────────────────
 # Wikipedia リンク存在チェック
