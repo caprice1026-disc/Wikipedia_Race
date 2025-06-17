@@ -8,6 +8,8 @@
 
 - `frontend/` : GitHub Pages などの静的ホスティングで公開する HTML/JavaScript
 - `backend/`  : Flask による API サーバ
+  - `routes/`   : ルーティング定義
+  - `services/` : Wikipedia 連携や DB 操作を担当
 - `static_pages/` : バックエンドを使用しない GitHub Pages 向けの純粋な HTML/CSS/JavaScript
 
 ## セットアップ
