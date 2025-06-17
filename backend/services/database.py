@@ -31,3 +31,17 @@ def save_submission(puzzle_id: int, user_name: str, path, step_count: int) -> No
 def get_ranking(puzzle_id: int):
     """ランキング情報を取得"""
     return Submission.ranking(puzzle_id)
+
+
+def add_puzzle(start_title: str, goal_title: str) -> Puzzle:
+    """新しいパズルを追加"""
+    now = datetime.utcnow()
+    puzzle = Puzzle(
+        puzzle_id=None,
+        start_title=start_title,
+        goal_title=goal_title,
+        created_at=now,
+        updated_at=now,
+    )
+    puzzle.save()
+    return puzzle
